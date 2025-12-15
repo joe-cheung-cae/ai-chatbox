@@ -193,16 +193,49 @@ class AIChatboxApp:
                     if similar_docs:
                         context = "\n".join(similar_docs)
 
-            # Chat with Ollama
-            response = self.chat_with_ollama(prompt, context)
-
-            # Add assistant response
-            self.add_message("assistant", response)
+            # Start streaming response
+            self.start_streaming_response(prompt, context)
 
         except Exception as e:
             self.add_message("assistant", f"Error: {e}")
 
-    def chat_with_ollama(self, prompt, context=""):
+    def start_streaming_response(self, prompt, context):
+        """Start streaming the assistant response"""
+        # Initialize empty assistant message
+        self.current_response = ""
+        self.add_message("assistant", "")  # Add empty message first
+
+        # Get streaming response
+        response_stream = self.chat_with_ollama(prompt, context, stream=True)
+
+        # Process stream in thread
+        threading.Thread(target=self._process_stream, args=(response_stream,)).start()
+
+    def _process_stream(self, response_stream):
+        """Process streaming response chunks"""
+        try:
+            for chunk in response_stream:
+                if 'message' in chunk and 'content' in chunk['message']:
+                    content = chunk['message']['content']
+                    self.current_response += content
+                    # Schedule UI update on main thread
+                    self.root.after(0, self.update_streaming_response, content)
+        except Exception as e:
+            self.root.after(0, self.update_streaming_response, f"\nError: {e}")
+
+    def update_streaming_response(self, new_content):
+        """Update the streaming response in the UI"""
+        # Get the last message (should be the assistant's current response)
+        if self.messages and self.messages[-1]['role'] == 'assistant':
+            self.messages[-1]['content'] += new_content
+
+            # Update display
+            self.chat_text.config(state=tk.NORMAL)
+            self.chat_text.insert(tk.END, new_content)
+            self.chat_text.config(state=tk.DISABLED)
+            self.chat_text.see(tk.END)
+
+    def chat_with_ollama(self, prompt, context="", stream=True):
         """Chat with Ollama model"""
         try:
             if context:
@@ -210,11 +243,20 @@ class AIChatboxApp:
             else:
                 full_prompt = prompt
 
-            response = ollama.chat(
-                model=self.ollama_model,
-                messages=[{'role': 'user', 'content': full_prompt}]
-            )
-            return response['message']['content']
+            if stream:
+                # Return a generator for streaming
+                response_stream = ollama.chat(
+                    model=self.ollama_model,
+                    messages=[{'role': 'user', 'content': full_prompt}],
+                    stream=True
+                )
+                return response_stream
+            else:
+                response = ollama.chat(
+                    model=self.ollama_model,
+                    messages=[{'role': 'user', 'content': full_prompt}]
+                )
+                return response['message']['content']
         except Exception as e:
             return f"Error: {e}"
 
