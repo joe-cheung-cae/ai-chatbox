@@ -25,6 +25,15 @@ class AIChatboxApp:
         # Load available models
         self.load_models()
 
+        # Set focus to input entry
+        self.input_entry.focus_set()
+
+        # Bring window to front and ensure it's focused
+        self.root.lift()
+        self.root.attributes('-topmost', True)
+        self.root.after_idle(self.root.attributes, '-topmost', False)
+        self.root.focus_force()
+
     def create_widgets(self):
         # Main frame
         main_frame = ttk.Frame(self.root)
@@ -71,7 +80,7 @@ class AIChatboxApp:
         input_frame = ttk.Frame(chat_frame)
         input_frame.pack(fill=tk.X)
 
-        self.input_entry = ttk.Entry(input_frame)
+        self.input_entry = ttk.Entry(input_frame, state="normal")
         self.input_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
         self.input_entry.bind("<Return>", self.send_message)
 

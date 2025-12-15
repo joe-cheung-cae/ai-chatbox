@@ -1,8 +1,11 @@
-tkinter
 ollama
 sentence-transformers
 langchain
+langchain-text-splitters
+langchain-community
+langchain-huggingface
 faiss-cpu
 PyPDF2
 python-docx
 torch
+socksio
